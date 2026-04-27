@@ -137,6 +137,42 @@ Key plots saved in `/reports`:
 
 ---
 
+## Model Explainability — SHAP Analysis
+
+To ensure the model's decisions can be understood and justified, SHAP (SHapley Additive exPlanations) analysis was applied to the final tuned XGBoost pipeline.
+
+### Global Feature Importance (Bar Plot)
+
+Mean absolute SHAP values across 1000 test samples. Top drivers:
+
+| Rank | Feature | Interpretation |
+|------|---------|----------------|
+| 1 | `ioi_3months` | High order frequency in last 3 months → high risk |
+| 2 | `ioi_36months` | Long-term order pattern — consistent signal |
+| 3 | `month` | Seasonal effect captured by the model |
+| 4 | `valor_quitado` | Higher total paid history → lower risk |
+| 5 | `default_3months` | Recent default history → direct risk flag |
+| 7 | `ratio_vencido_quitado` | Engineered feature — validates feature engineering decision |
+
+### Direction of Impact (Beeswarm Plot)
+
+- Clients with **high `default_3months`** (red dots) cluster strongly to the right → always increases default risk
+- Clients with **high `valor_quitado`** (red dots) cluster to the left → good payment history reduces risk
+- **Serasa features** (`valor_protestos`, `quant_protestos`) have scattered, low-magnitude impact — confirming internal history is more predictive
+
+### Individual Explanation (Waterfall Plot)
+
+For the highest-confidence defaulter in the test set (`probability ≈ 100%`):
+- The model started from a base prediction of `E[f(x)] = 0.155`
+- `valor_protestos = 105.013` pushed the score by **+4.23**
+- `ioi_3months = 0.259` added **+2.22**
+- `default_3months = 1` confirmed with **+1.41**
+- Final log-odds output: `f(x) = 14.35` → near-certain default
+
+> SHAP confirms that model decisions are **traceable and explainable** at the individual client level — a key requirement for responsible credit decisioning.
+
+---
+
 ## How to Run
 
 ### 1. Create and activate virtual environment
