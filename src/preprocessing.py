@@ -5,6 +5,7 @@ Reusable preprocessing pipeline for the X-Health Default Prediction project.
 
 Responsibilities:
   - Replace 'missing' strings with NaN
+  - Engineer new features (ratio_vencido_quitado, total_serasa)
   - Impute missing values (median for numerics, mode for categoricals)
   - Encode categorical variables (OneHotEncoder with max_categories to handle high cardinality)
   - Scale numerical features (RobustScaler — robust to outliers)
@@ -42,6 +43,9 @@ NUMERICAL_FEATURES = [
     "valor_total_pedido",
     "month",
     "year",
+    # Engineered features
+    "ratio_vencido_quitado",
+    "total_serasa",
 ]
 
 CATEGORICAL_FEATURES = [
@@ -63,6 +67,25 @@ def replace_missing_strings(df: pd.DataFrame) -> pd.DataFrame:
     for col in NUMERICAL_FEATURES:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df
+
+
+def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Create new features from existing ones.
+
+    - ratio_vencido_quitado: proportion of overdue payments relative to total paid history.
+      High values indicate a client that is increasingly failing to pay.
+    - total_serasa: aggregate count of all Serasa negative signals.
+      Simplifies multiple sparse Serasa columns into a single risk score.
+    """
+    df = df.copy()
+    df["ratio_vencido_quitado"] = df["valor_vencido"] / (df["valor_quitado"] + 1)
+    df["total_serasa"] = (
+        df["quant_protestos"].fillna(0)
+        + df["quant_acao_judicial"].fillna(0)
+        + df["dividas_vencidas_qtd"].fillna(0)
+    )
     return df
 
 
@@ -110,9 +133,10 @@ def build_preprocessor(num_cols: list, cat_cols: list) -> ColumnTransformer:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def load_and_clean(data_path: str) -> pd.DataFrame:
-    """Load the raw CSV and replace 'missing' strings with NaN."""
+    """Load the raw CSV, replace 'missing' strings with NaN and engineer features."""
     df = pd.read_csv(data_path, sep="\t", encoding="utf-8")
     df = replace_missing_strings(df)
+    df = engineer_features(df)
     return df
 
 

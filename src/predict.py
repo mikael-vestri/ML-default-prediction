@@ -24,13 +24,14 @@ from pathlib import Path
 
 from src.preprocessing import (
     replace_missing_strings,
+    engineer_features,
     NUMERICAL_FEATURES,
     CATEGORICAL_FEATURES,
 )
 
 # ── Default paths ─────────────────────────────────────────────────────────────
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
-_DEFAULT_PIPELINE_PATH = _PROJECT_ROOT / "models" / "pipeline_xgb.joblib"
+_DEFAULT_PIPELINE_PATH = _PROJECT_ROOT / "models" / "pipeline_xgb_tuned.joblib"
 
 # ── Module-level cache (loaded once per process) ──────────────────────────────
 _pipeline = None
@@ -47,15 +48,19 @@ def _load_pipeline(pipeline_path: Path = None):
 
 def _build_input_df(input_dict: dict) -> pd.DataFrame:
     """Convert input dictionary to a single-row DataFrame ready for the pipeline."""
-    all_features = NUMERICAL_FEATURES + CATEGORICAL_FEATURES
+    base_features = [f for f in NUMERICAL_FEATURES
+                     if f not in ("ratio_vencido_quitado", "total_serasa")]
+    all_features = base_features + CATEGORICAL_FEATURES
     row = {col: input_dict.get(col, np.nan) for col in all_features}
     df_input = pd.DataFrame([row])
-    return replace_missing_strings(df_input)
+    df_input = replace_missing_strings(df_input)
+    df_input = engineer_features(df_input)
+    return df_input
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def predict(input_dict: dict, threshold: float = 0.5) -> dict:
+def predict(input_dict: dict, threshold: float = 0.65) -> dict:
     """
     Receive input data for a single order and return the default prediction.
 
@@ -91,7 +96,7 @@ def predict(input_dict: dict, threshold: float = 0.5) -> dict:
     return {"default": prediction}
 
 
-def predict_proba(input_dict: dict, threshold: float = 0.5) -> dict:
+def predict_proba(input_dict: dict, threshold: float = 0.65) -> dict:
     """
     Like predict(), but also returns the raw probability of default.
     Use this when you want to apply a custom threshold or inspect the model confidence.
