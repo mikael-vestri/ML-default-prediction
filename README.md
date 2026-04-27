@@ -1,92 +1,203 @@
-## Instruções gerais
-- O presente repositório é de caráter pessoal e privado, não podendo ser compartilhado pelo candidato por quaisquer meios.
-- A solução do exercício deverá ser elaborada única e exclusivamente pelo candidato, sem ajuda **pessoal** externa. Obviamente, não há problemas em caso de consultas em livros ou meios eletrônicos.
-- O exercício em questão é fictício e não é parte de qualquer projeto real desenvolvido ou em desenvolvimento pela Kognita Lab.
-- O exercício tem caráter classificatório, e não eliminatório. Portanto, caso tenha algum problema e não consiga resolver todo o exercício, envie a solução até onde conseguiu evoluir.
-- A solução deverá ser entregue num repositório à parte, conforme descrito na seção "Sobre a entrega do exercício" abaixo.
-- O prazo típico para entrega do exercício é de 1 semana. Mas caso haja algum problema no meio do caminho, nos comunique e combinamos um novo prazo, sem maiores problemas.
-- **Não se preocupe caso não obtenha métricas excepcionais no seu modelo: faça seu melhor, mas esse não será o aspecto central a ser analisado, mas sim sua capacidade de análise, raciocínio, qualidade de código e organização/documentação**.  
+# X-Health Default Prediction — ML Pipeline
 
+A production-level Machine Learning pipeline to predict the **probability of default** for B2B clients of X-Health, a company that sells health devices on credit.
 
-<br></br>
-## Contexto de negócio do exercício
+---
 
-- Contexto geral - A empresa X-Health atua no comércio B2B vendendo dispositivos eletrônicos voltados para saúde com amplo espectro de preços, e de variada sofisticação/complexidade. 
-  
-- Sobre as vendas - As vendas são feitas à crédito: o cliente B2B faz seu pedido e paga (à vista ou em várias parcelas, conforme o combinado pelo time de vendas) num tempo futuro pré-determinado.
-  
-- O problema - O time financeiro da X-Health tem observado um número indesejável de não-pagamentos ("default" ou calote, em bom português).
+## Business Understanding
 
-- O objetivo - Querem de alguma forma minimizar esse fenômeno. Desejam um algoritmo que seja capaz de inferir a probabilidade de default para um dado pedido.
+X-Health operates in the B2B health electronics market. Clients place orders and pay in the future — either upfront or in installments. The finance team has observed a growing number of **non-payments (defaults)**, which directly impacts revenue and cash flow.
 
+**Goal:** Build a model capable of predicting, at the moment of a new order, whether a given client is likely to default — enabling the finance team to take preventive action (e.g., request a guarantee, reduce credit limit, or escalate for manual review).
 
-<br></br>
-## Sobre o dataset
+**Key trade-off:**
+- **False Negative** (missed default) → financial loss — higher cost
+- **False Positive** (blocking a good client) → lost sale — lower cost
 
-- Caminho: o dataset disponibilizado pela X-Health encontra-se em 
-```
-./_data/dataset_2021-5-26-10-14.csv
-```
-- Estrutura do .csv: para ler o arquivo, use  sep = '\t' e encoding = 'utf-8'.
-- O dataset possui tanto variáveis internas (decorrentes do comportamento histórico do cliente B2B junto à X-Health), quanto variáveis externas consultadas em bureaus de crédito, como o Serasa.
-- Cada linha do dataset representa um evento de compra de um conjunto de produtos, e tanto as variáveis internas quanto externas representam uma fotografia do cliente naquele instante.
-- Valores faltantes estão indicados no dataset como "missing".
-- Dicionário de dados:
+The model must be calibrated to **minimize False Negatives** while keeping False Positives at an acceptable level. The optimal threshold (0.64) was determined using the F1-score curve.
 
-| nome_coluna                    | desc                                                                                               |
-| --------------------------     |----------------------------------------------------------------------------------------- |
-| default\_3months               |Quantidade de default nos últimos 3 meses                                                          |
-| ioi\_Xmonths                   |Intervalo médio entre pedidos (em dias) nos últimos X meses                                       |
-| valor\_por\_vencer             |Total em pagamentos a vencer do cliente B2B, em Reais     |
-| valor\_vencido                 |Total em pagamentos vencidos do cliente B2B, em Reais                                              |
-| valor\_quitado                 |Total (em Reais) pago no histórico de compras do cliente B2B                |
-| quant\_protestos               |Quantidade de protestos de títulos de pagamento apresentados no Serasa|
-| valor\_protestos               |Valor total (em Reais) dos protestos de títulos de pagamento apresentados no Serasa|
-| quant\_acao_judicial           |Quantidade de ações judiciais apresentadas pelo Serasa|
-| acao\_judicial\_valor          |Valor total das ações judiciais (Serasa) |
-| participacao\_falencia\_valor  |Valor total (em Reais) de falências apresentadas pelo Serasa |
-| dividas\_vencidas\_valor       |Valor total de dívidas vencidas (Serasa)|
-| dividas\_vencidas\_qtd         |Quantidade total de dívidas vencidas (Serasa)|
-| falencia\_concordata\_qtd      |Quantidade de concordatas (Serasa)|
-| tipo\_sociedade                |Tipo de sociedade do cliente B2B |
-| opcao\_tributaria              |Opção tributária do cliente B2B |
-| atividade\_principal           |Atividade principal do cliente B2B|
-| forma\_pagamento               |Forma de pagamento combinada para o pedido |
-| valor\_total\_pedido           |Valor total (em Reais) do pedido em questão|
-| month                          |Mês do pedido|
-| year                           |Ano do pedido|
-| default                        |Status do pedido: default = 0 (pago em dia), default = 1 (pagamento não-realizado, calote concretizado)|
+---
 
-
-
-<br></br>
-## Expectativas do exercício:
-1 - Um Jupyter Notebook com uma **análise exploratória** dos dados do dataset disponibilizado. Use sua criatividade e nos mostre os insights que encontrar.
-
-2 - Um Jupyter Notebook com todo o **pipeline de estruturação do modelo probabilístico de inferência de default**: desde a limpeza e/ou transformação dos dados (se necessário), até o treinamento do modelo de aprendizado de máquina e avaliação de resultados. O candidato pode escolher o modelo probabilístico que julgar ser o melhor para o problema.
-
-3 - Um Jupyter Notebook apenas para sua **função de predição**: é esperada uma função que irá receber novos dados (em forma de dicionário) e retornar a predição de default. 
-
-Por exemplo: se no seu modelo final optou por usar as variáveis preditoras "ioi\_3months", "valor\_vencido" e "valor\_total\_pedido", espera-se que sua função de predição tenha como input um dicionário da forma
-```
-input_dict = {"ioi_3months": 3, "valor_vencido":125000, "valor_total_pedido":35000}
-```
-onde os valores no dicionário acima são os hipotéticos novos valores, e retorne um dicionário com o valor da predição:
+## Project Structure
 
 ```
-{"default":0}
+/data                   ← Dataset
+/notebooks
+    01_eda.ipynb        ← Exploratory Data Analysis
+    02_modeling.ipynb   ← Training, evaluation and model saving
+    03_inference.ipynb  ← Prediction function demo
+/src
+    preprocessing.py    ← Reusable preprocessing pipeline
+    predict.py          ← Prediction functions (predict, predict_proba)
+/models                 ← Saved pipeline (generated by 02_modeling.ipynb)
+/artifacts              ← Additional artifacts
+/reports                ← Exported plots
+requirements.txt
+README.md
 ```
-ou 
+
+---
+
+## Dataset Description
+
+- **Path:** `data/dataset_2021-5-26-10-14.csv`
+- **Format:** TSV (`sep='\t'`, `encoding='utf-8'`)
+- **Rows:** ~117,000 purchase events
+- **Missing values:** represented as the string `"missing"`
+
+| Column | Description |
+|--------|-------------|
+| `default_3months` | Number of defaults in the last 3 months (X-Health internal) |
+| `ioi_36months` / `ioi_3months` | Average interval between orders (days) |
+| `valor_por_vencer` | Total upcoming payments (R$) |
+| `valor_vencido` | Total overdue payments (R$) |
+| `valor_quitado` | Total paid historically (R$) |
+| `quant_protestos` | Number of Serasa title protests |
+| `valor_protestos` | Total value of protests (R$) |
+| `quant_acao_judicial` | Number of lawsuits (Serasa) |
+| `acao_judicial_valor` | Total value of lawsuits (R$) |
+| `participacao_falencia_valor` | Bankruptcy exposure value (R$) |
+| `dividas_vencidas_valor` | Total overdue debts — Serasa (R$) |
+| `dividas_vencidas_qtd` | Number of overdue debts — Serasa |
+| `falencia_concordata_qtd` | Number of bankruptcies |
+| `tipo_sociedade` | Company type |
+| `opcao_tributaria` | Tax regime |
+| `atividade_principal` | Main business activity |
+| `forma_pagamento` | Payment terms agreed for the order |
+| `valor_total_pedido` | Total order value (R$) |
+| `month` / `year` | Order date |
+| `default` | **Target:** 0 = paid on time, 1 = defaulted |
+
+---
+
+## EDA Insights
+
+| # | Insight | Business Implication |
+|---|---------|----------------------|
+| 1 | **Class imbalance** — ~16.7% default rate | Standard accuracy is misleading; ROC-AUC and Recall are better metrics |
+| 2 | **Financial variables are heavily right-skewed** | RobustScaler chosen over StandardScaler |
+| 3 | **Serasa variables are zero for 85%+ of clients** | Any non-zero value is already a risk signal |
+| 4 | **Temporal pattern** | Default rate varies over time — `month`/`year` add predictive value |
+| 5 | **`atividade_principal` has 203 unique values** | `max_categories=20` applied to prevent feature explosion |
+
+---
+
+## Key Business Insight — Internal History Beats Serasa
+
+> **The strongest predictor of default is not Serasa data — it is the client's own history within X-Health.**
+
+Analysis of the model's highest-confidence predictions revealed that clients flagged with **99%+ probability of default** often had zero Serasa alerts. What drove the prediction was:
+
+- `default_3months` — already defaulted multiple times in the last 3 months
+- `ioi_3months` — placing orders at a very high frequency (every few days)
+- `valor_por_vencer` — large amounts still due while continuing to buy
+
+**Practical implication:** Before consulting Serasa, the finance team should check internal history. A client with `default_3months > 0` is already a strong red flag, regardless of their external credit score.
+
+---
+
+## Modeling Decisions
+
+| Decision | Choice | Reason |
+|----------|--------|--------|
+| Missing value imputation | Median (numeric), Mode (categorical) | Robust to outliers common in financial data |
+| Scaling | RobustScaler | Uses IQR — not affected by extreme values |
+| Encoding | OneHotEncoder with `max_categories=20` | Prevents feature explosion from high-cardinality columns |
+| Imbalance handling | Class weighting (`scale_pos_weight`) | No synthetic data — every sample is real and transparent |
+| Data leakage prevention | Preprocessor fitted only on `X_train` | Full sklearn Pipeline ensures test set is never seen during fitting |
+| Baseline model | Logistic Regression | Linear, interpretable, fast |
+| **Final model** | **XGBoost** | Best ROC-AUC; handles non-linearity and imbalance natively |
+| **Threshold** | **0.64** | Maximizes F1-score on test set |
+
+---
+
+## Evaluation Results
+
+The optimal threshold of **0.64** was selected by maximizing the F1-score across all possible thresholds on the test set.
+
+At threshold = 0.64:
+- **Precision ≈ 0.63** — of every 10 default alerts, ~6 are real
+- **Recall ≈ 0.63** — the model catches ~63% of all real defaults
+
+Key plots saved in `/reports`:
+- `roc_pr_curves.png` — ROC and Precision-Recall curves (LR vs XGBoost)
+- `confusion_matrices.png` — Confusion matrices for both models
+- `feature_importance.png` — Top 20 XGBoost features
+
+---
+
+## How to Run
+
+### 1. Create and activate virtual environment
+
+```bash
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1   # Windows
+source .venv/bin/activate       # Linux/Mac
+```
+
+### 2. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Run EDA
 
 ```
-{"default":1}
+notebooks/01_eda.ipynb
 ```
 
-<br></br>
-## Sobre a entrega do exercício:
--  A solução de seu exercício deve ser entregue em um repositório público do tipo git de sua preferência (github, gitlab, bitbucket ou qualquer outro que preferir). 
--  Espera-se tanto um repositório quanto códigos **bem documentados**: faça seu melhor nesse sentido, adotando as melhores práticas que conhece. 
--  Os resultados precisam ser **reprodutíveis**: 
-   -  é fundamental estar contido no repositório de entrega um arquivo **requirements.txt** ou **conda yaml file** com as dependências necessárias para rodar todos os Notebooks.
-   -  é fundamental estar contido no repositório de entrega todos os **artefatos** necessários para o consumo do modelo por meio da função de predição (item 3 da seção anterior).
-   -   os scripts devem **executar sem erros**.
+### 4. Train and save the model
+
+```
+notebooks/02_modeling.ipynb
+```
+
+> Generates `models/pipeline_xgb.joblib`
+
+### 5. Run inference demo
+
+```
+notebooks/03_inference.ipynb
+```
+
+---
+
+## Prediction Function Usage
+
+```python
+from src.predict import predict, predict_proba
+
+# Basic prediction (threshold = 0.64)
+result = predict({
+    "default_3months": 0,
+    "ioi_3months": 28.0,
+    "valor_vencido": 0.0,
+    "valor_total_pedido": 25000.0,
+}, threshold=0.64)
+# Output: {"default": 0}
+
+# With probability — useful for custom thresholds
+result = predict_proba({
+    "default_3months": 4,
+    "ioi_3months": 6.21,
+    "valor_por_vencer": 77610.74,
+    "valor_total_pedido": 16194.23,
+}, threshold=0.64)
+# Output: {"default": 1, "probability": 0.9981}
+```
+
+**Adjusting the threshold:**
+```python
+predict(order, threshold=0.4)   # more conservative — catches more defaults
+predict(order, threshold=0.8)   # more permissive — fewer false alarms
+```
+
+---
+
+## Reproducibility
+
+- Random seed fixed at `SEED = 42` across all steps
+- Full pipeline (preprocessor + model) saved in `models/pipeline_xgb.joblib`
+- All dependencies listed in `requirements.txt`
